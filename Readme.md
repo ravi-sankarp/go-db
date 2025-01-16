@@ -1,0 +1,3 @@
+An embedded database written in go
+
+Still in progress...
