@@ -111,31 +111,31 @@ func parseTupleFromPageBuffer(buf []byte) (Tuple, error) {
 		case constants.STRING:
 			// get string length header and parse the data
 			var stringSize stringHeader
-			utils.DeSerialize(buf[:constants.STRING_HEADER_SIZE], &stringSize, nil)
-			var stringValue string
-			utils.DeSerialize(buf[constants.STRING_HEADER_SIZE:stringSize.length], &stringValue, nil)
+			utils.DeSerialize(buf[bytesRead:bytesRead+int(constants.STRING_HEADER_SIZE)], &stringSize, nil)
+			var strBuf = make([]byte, stringSize.Length)
+			utils.DeSerialize(buf[bytesRead+int(constants.STRING_HEADER_SIZE):bytesRead+int(constants.STRING_HEADER_SIZE)+int(stringSize.Length)], &strBuf, nil)
 
 			tuple[i] = attribute{
 				name:     attr.name,
-				value:    reflect.ValueOf(stringValue),
+				value:    reflect.ValueOf(string(strBuf)),
 				dataType: reflect.String,
 			}
-			bytesRead += int(constants.STRING_HEADER_SIZE) + int(stringSize.length)
+			bytesRead += int(constants.STRING_HEADER_SIZE) + int(stringSize.Length)
 
 		case constants.INTEGER:
-			var intValue int
-			utils.DeSerialize(buf[bytesRead:constants.INT_SIZE], &intValue, nil)
+			var intValue int64
+			utils.DeSerialize(buf[bytesRead:bytesRead+constants.INT_SIZE], &intValue, nil)
 
 			tuple[i] = attribute{
 				name:     attr.name,
 				value:    reflect.ValueOf(intValue),
 				dataType: reflect.Int64,
 			}
-			bytesRead += int(constants.INT_SIZE)
+			bytesRead += constants.INT_SIZE
 
 		case constants.BOOLEAN:
 			var boolValue bool
-			utils.DeSerialize(buf[bytesRead:constants.BOOL_SIZE], &boolValue, nil)
+			utils.DeSerialize(buf[bytesRead:bytesRead+constants.BOOL_SIZE], &boolValue, nil)
 
 			tuple[i] = attribute{
 				name:     attr.name,
@@ -146,9 +146,9 @@ func parseTupleFromPageBuffer(buf []byte) (Tuple, error) {
 
 		case constants.TIMESTAMP:
 
-			timeValue, err := utils.BinaryToTime(buf[bytesRead:constants.TIMESTAMP_SIZE])
+			timeValue, err := utils.BinaryToTime(buf[bytesRead : bytesRead+constants.TIMESTAMP_SIZE])
 			if err != nil {
-				return nil, dbErrors.NewDbError("Invalid Type while parsing page for attribute" + attr.name)
+				return nil, dbErrors.NewDbError("Error while parsing attribute " + attr.name + " error: " + err.Error())
 			}
 			tuple[i] = attribute{
 				name:     attr.name,
@@ -158,7 +158,7 @@ func parseTupleFromPageBuffer(buf []byte) (Tuple, error) {
 			bytesRead += int(constants.BOOL_SIZE)
 
 		default:
-			return nil, dbErrors.NewDbError("Invalid Type while parsing page for attribute" + attr.name)
+			return nil, dbErrors.NewDbError("Invalid Type while parsing page for attribute " + attr.name)
 		}
 	}
 	return tuple, nil
