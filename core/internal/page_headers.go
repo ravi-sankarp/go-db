@@ -22,7 +22,7 @@ type itemHeader struct {
 type itemHeaders []itemHeader
 
 type stringHeader struct {
-	length uint32
+	Length uint32
 }
 type tupleHeader struct {
 	Ct_id      uint32

@@ -24,7 +24,7 @@ const (
 	FREE_SPACE_HEAD      uint64 = PAGE_HEADER_SIZE
 	FREE_SPACE_PAGE_INIT uint64 = PAGE_SIZE - FILE_HEADER_SIZE - PAGE_HEADER_SIZE - SPECIAL_SPACE_SIZE
 	STRING_HEADER_SIZE   uint64 = 4  // 4 byte
-	INT_SIZE             int64  = 4  // 4 byte
+	INT_SIZE             int  = 8  // 8 byte
 	BOOL_SIZE            int    = 1  // 1 byte
 	TIMESTAMP_SIZE       int    = 16 // 16 byte
 	FILE_MODE            int    = 0644

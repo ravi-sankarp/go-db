@@ -51,7 +51,7 @@ func openTableFile(dbName string, tableName string) (*os.File, error) {
 	if err := validateTableNameAndDb(dbName, tableName); err != nil {
 		return nil, err
 	}
-	file, err := os.OpenFile(getTableFilePath(dbName, tableName), os.O_RDWR|os.O_APPEND, os.FileMode(constants.FILE_MODE))
+	file, err := os.OpenFile(getTableFilePath(dbName, tableName), os.O_RDWR, os.FileMode(constants.FILE_MODE))
 	if err != nil {
 		return nil, err
 	}
@@ -82,6 +82,7 @@ func InsertToTable(dbName string, tableName string, data Tuple) error {
 		return err
 	}
 
+	fmt.Printf("header : %+v", pageHeader)
 	// TODO dynamic table schema
 
 	if dataBuf, err = parseDataToBinaryTuple(data); err != nil {
@@ -94,14 +95,17 @@ func InsertToTable(dbName string, tableName string, data Tuple) error {
 		updateLastInsertedPageNo(file, fileHeader.Last_inserted_page_no+1)
 		return nil
 	}
-
-	pageHeader.Free_space_tail -= uint32(bufLen - 1)
+	pageHeader.Free_space_tail -= uint32(bufLen)
+	pageHeader.Free_space_head += uint32(constants.ITEM_HEADER_SIZE)
 	pageHeader.Tuple_count += 1
 	itemHeader := itemHeader{
 		Byte_offset: uint16(pageHeader.Free_space_tail + 1),
 		Length:      uint16(bufLen),
 	}
-	flushUpdatedPageAndItemHeader(file, pageHeader, itemHeader, fileHeader.Last_inserted_page_no)
+	fmt.Printf("header after insert: %+v", pageHeader)
+	if err = flushUpdatedPageAndItemHeader(file, pageHeader, itemHeader, fileHeader.Last_inserted_page_no); err != nil {
+		return err
+	}
 	tupleOffset := calcTupleOffset(fileHeader.Last_inserted_page_no, itemHeader.Byte_offset)
 	fmt.Println("tuple count", pageHeader.Tuple_count, " tupleOffset ", tupleOffset)
 	flushTupleToDisk(file, dataBuf.Bytes(), tupleOffset)

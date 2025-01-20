@@ -3,6 +3,7 @@ package utils
 import (
 	"bytes"
 	"fmt"
+	"go-db/core/constants"
 	dbErrors "go-db/core/errors"
 	"strconv"
 	"strings"
@@ -41,6 +42,7 @@ func TimeToString(t time.Time) (string, error) {
 
 // Convert the combined string back to time.Time
 func StringToTime(data string) (time.Time, error) {
+	fmt.Println(data)
 	// Split the string into timestamp and offset parts
 	parts := strings.Split(data, ":")
 	if len(parts) != 2 {
@@ -69,16 +71,18 @@ func StringToTime(data string) (time.Time, error) {
 }
 
 func TimeToBinary(t time.Time, buf *bytes.Buffer) error {
+	fmt.Println("length ", len([]byte(t.UTC().String())))
 	if str, err := TimeToString(t); err != nil {
 		return err
 	} else {
+		fmt.Println(str)
 		Serialize([]byte(str), buf)
 		return nil
 	}
 }
 
 func BinaryToTime(byteArr []byte) (time.Time, error) {
-	var timeString string
+	var timeString = make([]byte, constants.TIMESTAMP_SIZE)
 	DeSerialize(byteArr, &timeString, nil)
-	return StringToTime(timeString)
+	return StringToTime(string(timeString))
 }

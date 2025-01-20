@@ -86,15 +86,15 @@ func flushUpdatedPageAndItemHeader(file *os.File, pageHeader pageHeader, itemHea
 		pageBuf       = new(bytes.Buffer)
 		pageBufOffset = calcPageOffset(pageNo)
 		itemBuf       = new(bytes.Buffer)
-		itemBufOffset = calcItemHeaderOffset(pageHeader.Tuple_count, pageNo)
+		itemBufOffset = calcItemHeaderOffset(pageHeader.Tuple_count-1, pageNo)
 	)
 	utils.Serialize(pageHeader, pageBuf)
 	utils.Serialize(itemHeader, itemBuf)
-
 	if _, err := file.WriteAt(pageBuf.Bytes(), pageBufOffset); err != nil {
 		return err
 	}
 	_, err := file.WriteAt(itemBuf.Bytes(), itemBufOffset)
+	fmt.Println("Wrote item header", err)
 	return err
 }
 
@@ -104,6 +104,9 @@ func flushTupleToDisk(file *os.File, data []byte, offset int64) error {
 }
 
 func appendPage(page []byte, file *os.File) error {
+	if _, err := file.Seek(0, io.SeekEnd); err != nil {
+		return err
+	}
 	if _, err := file.Write(page); err != nil {
 		return err
 	}
@@ -162,7 +165,7 @@ func getFileHeaders(file *os.File) (fileHeader, error) {
 
 func getPageBuf(file *os.File, pageNo uint16) ([]byte, error) {
 	var (
-		offset     int64 = int64(int64(constants.FILE_HEADER_SIZE) + (int64(pageNo) * int64(constants.PAGE_SIZE)))
+		offset     int64 = calcPageOffset(pageNo)
 		bufferSize       = int(constants.PAGE_SIZE)
 	)
 
@@ -178,7 +181,6 @@ func parsePageHeadersFromBuffer(pageBuf *bytes.Reader) (pageHeader, error) {
 		header pageHeader
 	)
 	readFromBufferOffsetAndDeSerialize(pageBuf, 0, &header, 0)
-	fmt.Println("head ", header.Free_space_head, " tail ", header.Free_space_tail)
 	return header, nil
 }
 

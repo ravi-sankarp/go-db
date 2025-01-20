@@ -26,9 +26,11 @@ func TestSerializeAndDeserialize(t *testing.T) {
 func TestTableInitByteArrayDeserialization(t *testing.T) {
 	byteArr := getPageInitData(nil)
 	pageReader := bytes.NewReader(byteArr[2:])
-	if _, err := parsePageHeadersFromBuffer(pageReader); err != nil {
+	if pageHeader, err := parsePageHeadersFromBuffer(pageReader); err != nil {
 		t.Fatal(err)
+		return
 	} else {
+		fmt.Printf("header : %+v", pageHeader)
 		fmt.Println("SUCCESS")
 	}
 }
@@ -47,7 +49,6 @@ func TestTableCreation(t *testing.T) {
 }
 
 func TestInsertToTable(t *testing.T) {
-
 	if err := InsertToTable(dbName, tableName, SAMPLE_TUPLE_INSERT); err != nil {
 		t.Error(err)
 		return
