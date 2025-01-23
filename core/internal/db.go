@@ -3,7 +3,6 @@ package internal
 import (
 	"bytes"
 	"errors"
-	"fmt"
 	"go-db/core/constants"
 	dbErrors "go-db/core/errors"
 	"os"
@@ -82,7 +81,6 @@ func InsertToTable(dbName string, tableName string, data Tuple) error {
 		return err
 	}
 
-	fmt.Printf("header : %+v", pageHeader)
 	// TODO dynamic table schema
 
 	if dataBuf, err = parseDataToBinaryTuple(data); err != nil {
@@ -91,23 +89,17 @@ func InsertToTable(dbName string, tableName string, data Tuple) error {
 
 	bufLen := dataBuf.Len()
 	if checkIfNewPageIsRequired(pageHeader.Tuple_count, bufLen, pageHeader.Free_space_head, pageHeader.Free_space_tail) {
-		appendPage(getPageInitData(dataBuf), file)
-		updateLastInsertedPageNo(file, fileHeader.Last_inserted_page_no+1)
+		appendPage(getPageInitData(dataBuf), file) // append the new page
+		fileHeader.Last_inserted_page_no++ // update page no
+		updateLastInsertedPageNo(file, fileHeader)
 		return nil
 	}
-	pageHeader.Free_space_tail -= uint32(bufLen)
-	pageHeader.Free_space_head += uint32(constants.ITEM_HEADER_SIZE)
-	pageHeader.Tuple_count += 1
-	itemHeader := itemHeader{
-		Byte_offset: uint16(pageHeader.Free_space_tail + 1),
-		Length:      uint16(bufLen),
-	}
-	fmt.Printf("header after insert: %+v", pageHeader)
+	var itemHeader itemHeader
+	updatePageAndItemHeaderFromBufferLength(&pageHeader, &itemHeader, bufLen)
 	if err = flushUpdatedPageAndItemHeader(file, pageHeader, itemHeader, fileHeader.Last_inserted_page_no); err != nil {
 		return err
 	}
 	tupleOffset := calcTupleOffset(fileHeader.Last_inserted_page_no, itemHeader.Byte_offset)
-	fmt.Println("tuple count", pageHeader.Tuple_count, " tupleOffset ", tupleOffset)
 	flushTupleToDisk(file, dataBuf.Bytes(), tupleOffset)
 	return nil
 }

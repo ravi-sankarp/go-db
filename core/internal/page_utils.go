@@ -2,7 +2,6 @@ package internal
 
 import (
 	"bytes"
-	"fmt"
 	"go-db/core/constants"
 	dbErrors "go-db/core/errors"
 	"go-db/core/utils"
@@ -10,22 +9,15 @@ import (
 	"os"
 )
 
-const (
-	lastInsertedPageNoOffset = 0
-)
-
-func ensurePageSize(buffer *bytes.Buffer, targetSize int) error {
+func ensurePageSize(buffer *bytes.Buffer, targetSize int) {
 	currentLen := buffer.Len()
-
 	if currentLen > targetSize {
-		panic("Buffer Size overflow")
+		panic("Page Size overflow")
 	} else if currentLen < targetSize {
 		// Pad the buffer with zeros
 		padding := make([]byte, targetSize-currentLen)
 		buffer.Write(padding)
 	}
-
-	return nil
 }
 
 func appendAtFixedOffset(buffer *bytes.Buffer, byteOffset int, data []byte) error {
@@ -34,6 +26,15 @@ func appendAtFixedOffset(buffer *bytes.Buffer, byteOffset int, data []byte) erro
 	copy(rawBuffer[byteOffset:], data)
 
 	return nil
+}
+
+func updatePageAndItemHeaderFromBufferLength(pageHeader *pageHeader, itemHeader *itemHeader, bufLen int) {
+	pageHeader.Free_space_tail -= uint32(bufLen)
+	pageHeader.Free_space_head += uint32(constants.ITEM_HEADER_SIZE)
+	pageHeader.Tuple_count += 1
+	itemHeader.Byte_offset = uint16(pageHeader.Free_space_tail + 1)
+	itemHeader.Length = uint16(bufLen)
+
 }
 
 func getPageInitData(initData *bytes.Buffer) []byte {
@@ -45,38 +46,33 @@ func getPageInitData(initData *bytes.Buffer) []byte {
 		Free_space_tail:    constants.FREE_SPACE_TAIL,
 		Tuple_count:        0,
 	}
-	var itemHeader itemHeader
-	var bufLen int
-	if initData != nil {
-		bufLen = initData.Len()
-		pageHeader.Free_space_tail -= uint32(bufLen - 1)
-		itemHeader.Byte_offset = uint16(pageHeader.Free_space_tail + 1)
-		itemHeader.Length = uint16(bufLen)
-		pageHeader.Tuple_count += 1
-	}
+
 	inputBuffer := new(bytes.Buffer)
+
 	if initData == nil { // fileheader is only needed once per file
 		utils.Serialize(fileHeader{Last_inserted_page_no: 0}, inputBuffer)
 		targetSize += int(constants.FILE_HEADER_SIZE)
 	}
+
 	utils.Serialize(pageHeader, inputBuffer)
-	// ensurePageSize(inputBuffer, targetSize)
+	ensurePageSize(inputBuffer, targetSize)
 	if initData != nil {
+		var itemHeader itemHeader
+		updatePageAndItemHeaderFromBufferLength(&pageHeader, &itemHeader, initData.Len())
 		itemHeaderBuf := new(bytes.Buffer)
 		utils.Serialize(itemHeader, itemHeaderBuf)
 		initBytes := initData.Bytes()
 		itemOffset := int(constants.PAGE_HEADER_SIZE) + int(constants.FILE_HEADER_SIZE)
-		tupleOffset := int(pageHeader.Free_space_tail+1) + int(constants.FILE_HEADER_SIZE)
-		appendAtFixedOffset(inputBuffer, itemOffset, itemHeaderBuf.Bytes()) // item header
-		appendAtFixedOffset(inputBuffer, tupleOffset, initBytes)            // tuple
+		appendAtFixedOffset(inputBuffer, itemOffset, itemHeaderBuf.Bytes())      // item header
+		appendAtFixedOffset(inputBuffer, int(itemHeader.Byte_offset), initBytes) // tuple
 	}
 	return inputBuffer.Bytes()
 }
 
-func updateLastInsertedPageNo(file *os.File, pageNo uint16) error {
+func updateLastInsertedPageNo(file *os.File, fileHeader fileHeader) error {
 	buf := new(bytes.Buffer)
-	utils.Serialize(fileHeader{Last_inserted_page_no: pageNo}, buf)
-	_, err := file.WriteAt(buf.Bytes(), lastInsertedPageNoOffset)
+	utils.Serialize(fileHeader, buf)
+	_, err := file.WriteAt(buf.Bytes(), io.SeekStart)
 	return err
 
 }
@@ -94,7 +90,6 @@ func flushUpdatedPageAndItemHeader(file *os.File, pageHeader pageHeader, itemHea
 		return err
 	}
 	_, err := file.WriteAt(itemBuf.Bytes(), itemBufOffset)
-	fmt.Println("Wrote item header", err)
 	return err
 }
 
@@ -116,12 +111,10 @@ func appendPage(page []byte, file *os.File) error {
 func readFromFileOffset(file *os.File, bufferSize int, offset int64) ([]byte, error) {
 	buffer := make([]byte, bufferSize)
 	if _, err := file.Seek(offset, io.SeekStart); err != nil {
-		fmt.Printf("Error reading file: %v\n", err)
 		return buffer, dbErrors.NewDbError("Error reading data")
 	}
 
 	if _, err := file.Read(buffer); err != nil {
-		fmt.Printf("Error reading file: %v\n", err)
 		return buffer, dbErrors.NewDbError("Error reading data")
 	}
 	return buffer, nil
@@ -138,7 +131,6 @@ func readFromFileOffsetAndDeSerialize[T any](file *os.File, offset int64, buffer
 
 func seekBufferReader(reader *bytes.Reader, offset int64, whence int) error {
 	if _, err := reader.Seek(offset, whence); err != nil {
-		fmt.Printf("Error reading buf: %v\n", err)
 		return dbErrors.NewDbError("Error reading data")
 	}
 	return nil
@@ -197,7 +189,6 @@ func parseItemHeadersFromBuffer(pageBuf *bytes.Reader, noOfItems uint8) (itemHea
 		if err := readFromBufferOffsetAndDeSerialize(pageBuf, offset, &header, 0); err != nil {
 			return nil, err
 		}
-		fmt.Println(header)
 		itemHeaders[i] = header
 	}
 	return itemHeaders, nil
@@ -213,10 +204,10 @@ func getTuplesFromPage(page []byte) ([]Tuple, error) {
 	if pageHeader, err = parsePageHeadersFromBuffer(pageReader); err != nil {
 		return nil, err
 	}
+
 	if itemHeaders, err = parseItemHeadersFromBuffer(pageReader, pageHeader.Tuple_count); err != nil {
 		return nil, err
 	}
-	fmt.Println(itemHeaders)
 	result := make([]Tuple, pageHeader.Tuple_count)
 	for i, item := range itemHeaders {
 		if tuple, err := parseTuple(pageReader, item.Byte_offset); err != nil {

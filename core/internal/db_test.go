@@ -34,6 +34,7 @@ func TestTableInitByteArrayDeserialization(t *testing.T) {
 		fmt.Println("SUCCESS")
 	}
 }
+
 func TestTableCreation(t *testing.T) {
 	if err := CreateDb(dbName); err != nil {
 		t.Error(err)
@@ -49,12 +50,21 @@ func TestTableCreation(t *testing.T) {
 }
 
 func TestInsertToTable(t *testing.T) {
-	if err := InsertToTable(dbName, tableName, SAMPLE_TUPLE_INSERT); err != nil {
+	if err := InsertToTable(dbName, tableName, GetSampleTupleInsert()); err != nil {
 		t.Error(err)
 		return
-
 	}
+	fmt.Println("SUCCESS")
+}
 
+func TestInsertOf10000Rows(t *testing.T) {
+	for i := 0; i < 10000; i++ {
+		if err := InsertToTable(dbName, tableName, GetSampleTupleInsert()); err != nil {
+			t.Error(err)
+			return
+
+		}
+	}
 	fmt.Println("SUCCESS")
 }
 
@@ -75,6 +85,7 @@ func TestReadFromTable(t *testing.T) {
 		}
 		actualResultSet[i] = row
 	}
-	fmt.Println(actualResultSet)
+	// json, _ := json.MarshalIndent(actualResultSet, "", "")
+	fmt.Println("read ", len(actualResultSet)," rows")
 	fmt.Println("SUCCESS")
 }

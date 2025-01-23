@@ -1,7 +1,6 @@
 package internal
 
 import (
-	"fmt"
 	"go-db/core/constants"
 )
 
@@ -18,6 +17,5 @@ func calcTupleOffset(pageNo uint16, offsetInPage uint16) int64 {
 }
 
 func checkIfNewPageIsRequired(tupleCount uint8, bufLen int, freeSpaceHead uint32, freeSpaceTail uint32) bool {
-	fmt.Println("New page required: ", int(tupleCount)*int(constants.ITEM_HEADER_SIZE)+bufLen+int(freeSpaceHead) >= int(freeSpaceTail))
 	return int(tupleCount)*int(constants.ITEM_HEADER_SIZE)+bufLen+int(freeSpaceHead) >= int(freeSpaceTail)
 }
