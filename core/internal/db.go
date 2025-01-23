@@ -88,10 +88,10 @@ func InsertToTable(dbName string, tableName string, data Tuple) error {
 	}
 
 	bufLen := dataBuf.Len()
-	if checkIfNewPageIsRequired(pageHeader.Tuple_count, bufLen, pageHeader.Free_space_head, pageHeader.Free_space_tail) {
+	if checkIfNewPageIsRequired(pageHeader.Tuple_count+1, bufLen, pageHeader.Free_space_head, pageHeader.Free_space_tail) {
+		// panic(fmt.Sprint("New page, Tuple Count: ", pageHeader.Tuple_count))
 		appendPage(getPageInitData(dataBuf), file) // append the new page
-		fileHeader.Last_inserted_page_no++ // update page no
-		updateLastInsertedPageNo(file, fileHeader)
+		calcAndUpdateLastInsertedPageNo(file, fileHeader)
 		return nil
 	}
 	var itemHeader itemHeader
@@ -122,10 +122,10 @@ func ReadFromTable(dbName string, tableName string) ([]Tuple, error) {
 	var i uint16 = 0
 	var result []Tuple
 	for i = 0; i <= fileHeader.Last_inserted_page_no; i++ {
-		if page, err = getPageBuf(file, fileHeader.Last_inserted_page_no); err != nil {
+		if page, err = getPageBuf(file, i); err != nil {
 			return nil, err
 		}
-		tuples, err := getTuplesFromPage(page)
+		tuples, err := getTuplesFromPage(&page)
 		if err != nil {
 			return nil, err
 		}
