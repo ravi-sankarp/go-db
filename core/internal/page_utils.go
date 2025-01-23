@@ -54,22 +54,24 @@ func getPageInitData(initData *bytes.Buffer) []byte {
 		targetSize += int(constants.FILE_HEADER_SIZE)
 	}
 
-	utils.Serialize(pageHeader, inputBuffer)
+	var itemHeader itemHeader
+	if initData != nil { // if initdata is there then append updated pageheader with item header
+		updatePageAndItemHeaderFromBufferLength(&pageHeader, &itemHeader, initData.Len())
+		utils.Serialize(pageHeader, inputBuffer)
+		utils.Serialize(itemHeader, inputBuffer)
+	} else {
+		utils.Serialize(pageHeader, inputBuffer)
+	}
 	ensurePageSize(inputBuffer, targetSize)
 	if initData != nil {
-		var itemHeader itemHeader
-		updatePageAndItemHeaderFromBufferLength(&pageHeader, &itemHeader, initData.Len())
-		itemHeaderBuf := new(bytes.Buffer)
-		utils.Serialize(itemHeader, itemHeaderBuf)
 		initBytes := initData.Bytes()
-		itemOffset := int(constants.PAGE_HEADER_SIZE) + int(constants.FILE_HEADER_SIZE)
-		appendAtFixedOffset(inputBuffer, itemOffset, itemHeaderBuf.Bytes())      // item header
 		appendAtFixedOffset(inputBuffer, int(itemHeader.Byte_offset), initBytes) // tuple
 	}
 	return inputBuffer.Bytes()
 }
 
-func updateLastInsertedPageNo(file *os.File, fileHeader fileHeader) error {
+func calcAndUpdateLastInsertedPageNo(file *os.File, fileHeader fileHeader) error {
+	fileHeader.Last_inserted_page_no++ // update page no
 	buf := new(bytes.Buffer)
 	utils.Serialize(fileHeader, buf)
 	_, err := file.WriteAt(buf.Bytes(), io.SeekStart)
@@ -194,13 +196,13 @@ func parseItemHeadersFromBuffer(pageBuf *bytes.Reader, noOfItems uint8) (itemHea
 	return itemHeaders, nil
 }
 
-func getTuplesFromPage(page []byte) ([]Tuple, error) {
+func getTuplesFromPage(page *[]byte) ([]Tuple, error) {
 	var (
 		pageHeader  pageHeader
 		itemHeaders itemHeaders
 		err         error
 	)
-	pageReader := bytes.NewReader(page)
+	pageReader := bytes.NewReader(*page)
 	if pageHeader, err = parsePageHeadersFromBuffer(pageReader); err != nil {
 		return nil, err
 	}
