@@ -2,11 +2,12 @@ package internal
 
 import (
 	"bytes"
-	"fmt"
 	"go-db/core/constants"
 	dbErrors "go-db/core/errors"
 	"go-db/core/utils"
+	"math/rand"
 	"reflect"
+	"strconv"
 	"time"
 )
 
@@ -46,32 +47,36 @@ type SAMPLE_TABLE_STRUCT struct {
 	Created_on time.Time
 }
 
-var SAMPLE_TUPLE_INSERT = Tuple{
-	attribute{
-		name:     "name",
-		value:    reflect.ValueOf("test"),
-		dataType: reflect.String,
-	},
-	attribute{
-		name:     "email",
-		value:    reflect.ValueOf("test@gmail.com"),
-		dataType: reflect.String,
-	},
-	attribute{
-		name:     "age",
-		value:    reflect.ValueOf(23),
-		dataType: reflect.Int,
-	},
-	attribute{
-		name:     "deleted",
-		value:    reflect.ValueOf(false),
-		dataType: reflect.Bool,
-	},
-	attribute{
-		name:     "created_on",
-		value:    reflect.ValueOf(time.Now().UTC()),
-		dataType: reflect.Struct,
-	},
+func GetSampleTupleInsert() Tuple {
+	randInt := strconv.Itoa(rand.Intn(1000))
+	var SAMPLE_TUPLE_INSERT = Tuple{
+		attribute{
+			name:     "name",
+			value:    reflect.ValueOf("test" + randInt),
+			dataType: reflect.String,
+		},
+		attribute{
+			name:     "email",
+			value:    reflect.ValueOf("test" + randInt + "@gmail.com"),
+			dataType: reflect.String,
+		},
+		attribute{
+			name:     "age",
+			value:    reflect.ValueOf(23),
+			dataType: reflect.Int,
+		},
+		attribute{
+			name:     "deleted",
+			value:    reflect.ValueOf(false),
+			dataType: reflect.Bool,
+		},
+		attribute{
+			name:     "created_on",
+			value:    reflect.ValueOf(time.Now().UTC()),
+			dataType: reflect.Struct,
+		},
+	}
+	return SAMPLE_TUPLE_INSERT
 }
 
 func parseDataToBinaryTuple(tuple Tuple) (*bytes.Buffer, error) {
@@ -92,8 +97,6 @@ func parseDataToBinaryTuple(tuple Tuple) (*bytes.Buffer, error) {
 				value := attribute.value.Interface().(time.Time)
 				utils.TimeToBinary(value, dataBuf)
 			} else {
-				fmt.Println(attribute.dataType)
-				fmt.Println(reflect.TypeOf(attribute.dataType.String()))
 				return dataBuf, dbErrors.NewDbError("Invalid Type for " + attribute.name)
 			}
 		default:

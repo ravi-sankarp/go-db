@@ -26,6 +26,6 @@ const (
 	STRING_HEADER_SIZE   uint64 = 4  // 4 byte
 	INT_SIZE             int  = 8  // 8 byte
 	BOOL_SIZE            int    = 1  // 1 byte
-	TIMESTAMP_SIZE       int    = 16 // 16 byte
+	TIMESTAMP_SIZE       int    = 15 // 15 byte
 	FILE_MODE            int    = 0644
 )
