@@ -36,6 +36,9 @@ func TestTableInitByteArrayDeserialization(t *testing.T) {
 }
 
 func TestTableCreation(t *testing.T) {
+	if err := DeleteDb(dbName); err != nil {
+		t.Error(err)
+	}
 	if err := CreateDb(dbName); err != nil {
 		t.Error(err)
 		return
@@ -57,18 +60,15 @@ func TestInsertToTable(t *testing.T) {
 	fmt.Println("SUCCESS")
 }
 
-func TestInsertOf10000Rows(t *testing.T) {
-	for i := 0; i < 10000; i++ {
+func TestInsertAndSelectOf10000Rows(t *testing.T) {
+	TestTableCreation(t)
+	ROWS_TO_INSERT := 10000
+	for range ROWS_TO_INSERT {
 		if err := InsertToTable(dbName, tableName, GetSampleTupleInsert()); err != nil {
 			t.Error(err)
 			return
-
 		}
 	}
-	fmt.Println("SUCCESS")
-}
-
-func TestReadFromTable(t *testing.T) {
 
 	result, err := ReadFromTable(dbName, tableName)
 	if err != nil {
@@ -77,7 +77,7 @@ func TestReadFromTable(t *testing.T) {
 	}
 
 	actualResultSet := make([]SAMPLE_TABLE_STRUCT, len(result))
-	for i, _ := range result {
+	for i := range result {
 		var row SAMPLE_TABLE_STRUCT
 		if err := result[i].Scan(&row.Name, &row.Email, &row.Age, &row.Deleted, &row.Created_on); err != nil {
 			t.Error(err)
@@ -85,7 +85,9 @@ func TestReadFromTable(t *testing.T) {
 		}
 		actualResultSet[i] = row
 	}
-	// json, _ := json.MarshalIndent(actualResultSet, "", "")
-	fmt.Println("read ", len(actualResultSet)," rows")
+	fmt.Println(len(actualResultSet))
+	if len(actualResultSet) != ROWS_TO_INSERT {
+		t.Error("Number or rows should be ", ROWS_TO_INSERT)
+	}
 	fmt.Println("SUCCESS")
 }

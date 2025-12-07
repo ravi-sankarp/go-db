@@ -17,18 +17,30 @@ func createDataFolder() error {
 		return nil
 	}
 }
+
+func getDbDirName(name string) string {
+	return path.Join(constants.DATA_FILE_PATH, name)
+}
+
 func CreateDb(name string) error {
 	err := createDataFolder()
 	if err != nil {
 		return err
 	}
-	dirName := path.Join(constants.DATA_FILE_PATH, name)
+	dirName := getDbDirName(name)
 	if _, err := os.Stat(dirName); errors.Is(err, os.ErrNotExist) {
 		error := os.Mkdir(dirName, os.ModeDir)
 		return error
 	} else {
 		return dbErrors.NewDbError(dbErrors.DUPLICATE_DB_NAME)
 	}
+}
+func DeleteDb(name string) error {
+	dirName := getDbDirName(name)
+	if err := os.RemoveAll(dirName); errors.Is(err, os.ErrNotExist) {
+		return err
+	}
+	return nil
 }
 
 func CreateTable(dbName string, tableName string) error {
